@@ -6,7 +6,7 @@ object IntegrationTest {
   lazy val IntgLocalTest = config("intg_local") extend Test
   // Select integration test that connect to dev env
   lazy val IntgDevTest = config("intg_dev") extend Test
-  // Select all integration tests
+  // Select general integration tests
   lazy val IntgTest = config("intg") extend Test
 
   lazy val configs = Seq(IntgLocalTest, IntgDevTest, IntgTest)
@@ -26,12 +26,10 @@ object IntegrationTest {
     testOptions in IntgLocalTest := Seq(
       Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgLocalTest")
     ),
-    testOptions in IntgLocalTest := Seq(
-      Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgLocalTest")
+    testOptions in IntgDevTest := Seq(
+      Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgDevTest")
     ),
     testOptions in IntgTest := Seq(
-      Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgLocalTest"),
-      Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgDevTest"),
       Tests.Argument(TestFrameworks.ScalaTest, "-n","IntgTest")
     ),
     // don't run integration tests in parallel since they use external resources
