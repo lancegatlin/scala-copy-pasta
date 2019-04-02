@@ -14,5 +14,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion, // % Provided,
   "org.apache.spark" %% "spark-core" % sparkVersion, // % Provided,
   "com.zaxxer" % "HikariCP" % "3.3.1",
-  "org.scalatest" %% "scalatest" % "3.0.5" //% Test
+  "org.scalatest" %% "scalatest" % "3.0.5", //% Test,
+  "com.holdenkarau" %% "spark-testing-base" % "2.2.2_0.11.0" //% Test
 )
