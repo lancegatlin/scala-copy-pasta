@@ -1,6 +1,24 @@
 package org
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.{BiFunction, Function => JFunction}
+
 package object ldg {
+    // thread safe map
+  type TSMap[A,B] = ConcurrentHashMap[A,B]
+
+  implicit class ConcurrentHashMapExt[A,B](val self: TSMap[A,B]) extends AnyVal {
+    def getOrCompute(key: A)(calc: () => B) : B =
+      self.computeIfAbsent(key, new JFunction[A,B] {
+        override def apply(t: A): B = calc()
+      })
+
+    def applyOrCompute(key: A)(calc: B => B) : B =
+      self.computeIfPresent(key, new BiFunction[A,B,B] {
+        override def apply(t: A, u: B): B = calc(u)
+      })
+  }
+
   implicit class AnyEffectExt[A](val self: A) extends AnyVal {
     /**
       * Sugar that allows creating a side-effect in a dot function stream:
