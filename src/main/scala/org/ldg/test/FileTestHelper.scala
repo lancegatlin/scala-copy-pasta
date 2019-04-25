@@ -1,26 +1,59 @@
 package org.ldg.test
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.scalalogging.slf4j.LazyLogging
+
+import scala.collection.JavaConverters._
 import org.apache.commons.io.FileUtils
+import org.ldg._
 import org.scalatest.Matchers
 
 import scala.io.Source
-import org.ldg._
+import scala.util.Random
 
-trait FileTestHelper extends Matchers with LazyLogging {
-  def testName: String = this.getClass.getSimpleName
-
-  def withTmpDir[A](f: Path => A) : A = {
-    val tmpdir = Files.createTempDirectory(s"$testName-")
-    logger.info(s"Created temp directory: $tmpdir")
-    try {
-      f(tmpdir)
-    } finally {
-      logger.info(s"Removing temp directory: $tmpdir")
-      rmDir(tmpdir.toString)
+object FileTestHelper extends LazyLogging {
+  val tmpDirCache = new TSMap[String, Path]
+  Runtime.getRuntime.addShutdownHook(new Thread {
+    override def run(): Unit = {
+      tmpDirCache.entrySet().asScala.foreach { entry =>
+        val tmpDirPath = entry.getValue
+        val tmpDir = tmpDirPath.toFile
+        logger.info(s"Removing temp dir: $tmpDir")
+        if(FileUtils.deleteQuietly(tmpDir) == false) {
+          logger.warn(s"Failed to delete tmpdir=$tmpDirPath")
+        }
+      }
     }
+  })
+}
+
+trait FileTestHelper
+  extends Matchers
+  with HasTestName
+  with LazyLogging {
+  import FileTestHelper._
+
+  def mkTmpDir(name: String) : Path = {
+    tmpDirCache.getOrCompute(name) { () =>
+      val tmpdir = Files.createTempDirectory(s"$name-")
+      logger.info(s"Created temp directory for test $name: $tmpdir")
+      tmpdir
+    }
+  }
+
+  def mkTmpDir(name: String, subDir: String) : Path = {
+    val tmpDir = mkTmpDir(name)
+    val subDirPath = Paths.get(s"$tmpDir/$subDir")
+    subDirPath.toFile.mkdir()
+    subDirPath
+  }
+
+  def getTestTmpDir() : Path = mkTmpDir(testName)
+  def getTestTmpDir(subDir: String) : Path = mkTmpDir(testName, subDir)
+
+  def withTmpDir[A](task: String)(f: Path => A) : A = {
+    f(getTestTmpDir(s"$task-${Random.alphanumeric.take(6).mkString}"))
   }
 
   def ls(path: String) : List[java.io.File] = {
@@ -31,14 +64,21 @@ trait FileTestHelper extends Matchers with LazyLogging {
       .toList
   }
 
-  def getResourceAsString(name: String) : String = {
+  def getResourceAsString(name: String) : Option[String] = {
     require(name.startsWith("/"), s"Resource name must start with slash(/): $name")
-    val resIn = Option(getClass.getResourceAsStream(name)).getOrDie(s"Failed to find resource: $name")
-    Source.fromInputStream(resIn).mkString
+    Option(getClass.getResourceAsStream(name)).map { resIn =>
+      Source.fromInputStream(resIn).mkString
+    }
   }
 
-  def getResourceAsOneLineString(name: String) : String =
-    getResourceAsString(name).replaceAll("\\s+", " ")
+  def getResourceAsOneLineString(name: String) : Option[String] =
+    getResourceAsString(name).map(_.replaceAll("\\s+", " "))
+
+  def requireResourceAsString(name: String) : String =
+    getResourceAsString(name).getOrDie(s"Failed to find resource: $name")
+
+  def requireResourceAsOneLineString(name: String) : String =
+    getResourceAsOneLineString(name).getOrDie(s"Failed to find resource: $name")
 
   /**
     * Compare to strings line by line

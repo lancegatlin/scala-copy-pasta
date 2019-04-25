@@ -1,16 +1,17 @@
-package org.ldg.test
+package org.ldg.spark.test
 
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.ldg._
+import org.ldg.test.FileTestHelper
 
 import scala.collection.JavaConverters._
 import scala.io.Source
-import org.ldg._
 
 object SparkSessionTestHelper extends LazyLogging {
 
-  val sparkSessionCache = new TSMap[SparkTestConfig,SparkSession]
+  val sparkSessionCache = new TSMap[SparkTestConfig, SparkSession]
 
   case class SparkTestConfig(
     name: String,
@@ -66,17 +67,18 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
     * @param df
     * @return output CSV String
     */
-  def writeCsvToString(df: DataFrame) : String = {
-    withTmpDir { tmpdir =>
+  def writeDfToCsvString(
+    df: DataFrame,
+    header: Boolean = false
+  ) : String = {
+    withTmpDir("write-df-to-csv") { tmpdir =>
       val outputDirPath = tmpdir.toString + "/output"
-      df
-        .coalesce(1)
-        .write.format("csv")
-        .option("overwrite","true")
-        .option("header","true")
-        .save(outputDirPath)
+      df.coalesce(1).write
+        .mode(SaveMode.Overwrite)
+        .option("header", header.toString)
+        .csv(outputDirPath)
 
-      logger.info(s"Wrote CSV ${df.count()} records to $outputDirPath")
+//      logger.info(s"Wrote CSV ${df.count()} records to $outputDirPath")
 
       val outputFile =
         ls(outputDirPath)
@@ -86,6 +88,11 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
 
       Source.fromFile(outputFile).mkString
     }
+  }
+
+  def writeDfToCsvFile(df: DataFrame, path: String) : Unit = {
+    val csvStr = writeDfToCsvString(df)
+    new java.io.PrintWriter(path) { write(csvStr); close() }
   }
 
   /**
@@ -103,7 +110,7 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
     sparkSession: SparkSession
   ) : String = {
     import sparkSession.sqlContext.implicits._
-    writeCsvToString {
+    writeDfToCsvString {
       val df =
         sparkSession.read
           .option("header",true)
@@ -114,7 +121,8 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
 
   def csvToDF(
     csv: String,
-    schema: StructType
+    schema: StructType,
+    header: Boolean = false
   )(implicit
     sparkSession: SparkSession
   ) : DataFrame = {
@@ -126,6 +134,25 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
         .parallelize(csvLines)
         .toDS
 
-    sparkSession.read.schema(schema).option("header","true").csv(csvDS)
+    sparkSession.read.schema(schema).option("header",header.toString).csv(csvDS)
+  }
+
+  def requireCsvResourceAsDf(
+    resourceName: String,
+    schema: StructType
+  )(implicit
+    sparkSession: SparkSession
+  ) : DataFrame = {
+    val csv = requireResourceAsString(resourceName)
+    csvToDF(csv, schema)
+  }
+
+  def compareDfToExpectedCsv(
+    df: DataFrame,
+    expectedCsvResourceName: String
+  ) : Unit = {
+    val csv = writeDfToCsvString(df)
+    val expectedCsv = requireResourceAsString(expectedCsvResourceName)
+    ensureSameLines(csv, expectedCsv)
   }
 }

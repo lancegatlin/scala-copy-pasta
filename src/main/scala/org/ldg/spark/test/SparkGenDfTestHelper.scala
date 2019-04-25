@@ -1,17 +1,17 @@
-package org.ldg.test
+package org.ldg.spark.test
 
 import java.sql.Timestamp
 import java.time.Instant
 
-import org.apache.spark.sql._
-import com.holdenkarau.spark.testing.{ColumnGenerator, DataframeGenerator, Column => SingleColumnGen}
+import com.holdenkarau.spark.testing.{DataframeGenerator, Column => SingleColumnGen}
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import org.apache.spark.sql._
 import org.apache.spark.sql.types.StructType
+import org.ldg._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
-import org.ldg._
 
-object SparkGenDfHelper {
+object SparkGenDfTestHelper {
 
   object Generators {
     // note: these need to be outside trait since Gen is lazy and closes
@@ -34,44 +34,36 @@ object SparkGenDfHelper {
   }
 }
 
-trait SparkGenDfHelper extends LazyLogging {
+trait SparkGenDfTestHelper extends LazyLogging {
 
   def mkGenDataFrame(
     schema: StructType,
     numOfPartitions: Int = 1,
-    customColumnGenerators: Seq[ColumnGenerator] = Seq.empty
+    customColumnGenerators: Seq[(String,Gen[Any])] = Seq.empty
   )(implicit
     sparkSession: SparkSession
   ) : Gen[DataFrame] = {
+    val _customColumnGenerators =
+      customColumnGenerators.map { case (colName, colGen) =>
+        new SingleColumnGen(colName,colGen)
+      }
+
     val arbitraryDataFrame : Arbitrary[DataFrame] =
       DataframeGenerator.arbitraryDataFrameWithCustomFields(
         sqlContext = sparkSession.sqlContext,
         schema = schema,
         minPartitions = numOfPartitions
-      )(customColumnGenerators:_*)
+      )(_customColumnGenerators:_*)
 
     arbitraryDataFrame.arbitrary
   }
 
-  def genDataFrame(
-    schema: StructType,
-    rowCount: Int,
-    customColumnGenerators: Seq[(String,Gen[Any])] = Seq.empty,
-    numOfPartitions: Int = 1,
-    seed: Seed = Seed.random()
-  )(implicit
-    sparkSession: SparkSession
+  def runGenDf(
+    gen: Gen[DataFrame],
+    n: Int,
+    seed : Seed = Seed.random()
   ) : DataFrame = {
-    val _customColumnGenerators =
-      customColumnGenerators.map { case (colName, colGen) =>
-        new SingleColumnGen(colName,colGen)
-      }
-    val gen = mkGenDataFrame(
-      schema = schema,
-      numOfPartitions = numOfPartitions,
-      customColumnGenerators = _customColumnGenerators
-    )
-    gen(Gen.Parameters.default.withSize(rowCount), seed)
-      .getOrDie(s"Failed to generate dataframe with $rowCount rows for scheam $schema")
+    gen.apply(Gen.Parameters.default.withSize(n), seed)
+      .getOrDie("Expected Gen[DataFrame] to generate a value")
   }
 }

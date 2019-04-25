@@ -1,5 +1,6 @@
 package org
 
+import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.{BiFunction, Function => JFunction}
 
@@ -29,6 +30,16 @@ package object ldg {
     def effect(f: A => Unit) : A = {
       f(self)
       self
+    }
+
+    /**
+      * Transform self
+      *
+      * @param f transformation function
+      * @return new self
+      */
+    def xfrm(f: A => A) : A = {
+      f(self)
     }
   }
 
@@ -74,5 +85,10 @@ package object ldg {
       */
     def getOrDie(key: A, msg: String) : B =
       self.getOrElse(key, die(msg))
+  }
+
+  implicit class LocalDateExt(val self: LocalDate) extends AnyVal {
+    def toSqlDate : java.sql.Date =
+      java.sql.Date.valueOf(self)
   }
 }
