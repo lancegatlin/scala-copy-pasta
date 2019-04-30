@@ -6,7 +6,7 @@ import java.util.function.{BiFunction, Function => JFunction}
 
 package object ldg {
     // thread safe map
-  type TSMap[A,B] = ConcurrentHashMap[A,B]
+    type TSMap[A,B] = ConcurrentHashMap[A,B]
 
   implicit class ConcurrentHashMapExt[A,B](val self: TSMap[A,B]) extends AnyVal {
     def getOrCompute(key: A)(calc: () => B) : B =
@@ -38,8 +38,18 @@ package object ldg {
       * @param f transformation function
       * @return new self
       */
-    def xfrm(f: A => A) : A = {
+    def transform(f: A => A) : A = {
       f(self)
+    }
+
+    /**
+      * Maybe transform self if opt is set otherwise return self
+      *
+      * @param f transformation function
+      * @return new self
+      */
+    def maybeTransform[B](opt: Option[B])(f: (A,B) => A) : A = {
+      opt.fold(self)(b => f(self,b))
     }
   }
 

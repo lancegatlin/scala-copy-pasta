@@ -22,13 +22,13 @@ trait SparkS3Helper {
     def header(header: Boolean) = copy(optHeader = Some(header))
     def configure(dfr: DataFrameReader) : DataFrameReader = {
       dfr
-        .xfrm { _dfr =>
+        .transform { _dfr =>
           optHeader match {
             case Some(header) => _dfr.option("header", header)
             case None => _dfr
           }
         }
-        .xfrm { _dfr =>
+        .transform { _dfr =>
           optSchema match {
             case Some(schema) => _dfr.schema(schema)
             case None => _dfr
@@ -58,7 +58,7 @@ trait SparkS3Helper {
 
     def configure[A](dfw: DataFrameWriter[A]) : DataFrameWriter[A] = {
       dfw
-        .xfrm { _dfw =>
+        .transform { _dfw =>
           optSaveMode match {
             case Some(saveMode) => _dfw.mode(saveMode)
             case None => _dfw
