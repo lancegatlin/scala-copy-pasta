@@ -18,8 +18,10 @@ class DiscoverProxies {
         val ps = ProxySearch.getDefaultProxySearch
         ps.setPacCacheSettings(32, 1000*60*5, CacheScope.CACHE_SCOPE_URL)
 
-        ps.getProxySelector.select(
-            new URI(someUrl)
-        ).asScala.toList
+        Option(ps.getProxySelector).map(
+            _.select(
+                new URI(someUrl)
+            ).asScala.toList
+        ).getOrElse(Nil)
     }
 }

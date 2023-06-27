@@ -114,7 +114,7 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
       val df =
         sparkSession.read
           .option("header",true)
-          .csv(csv.lines.toIndexedSeq.toDS())
+          .csv(csv.lines.iterator().asScala.toIndexedSeq.toDS())
       f(df)
     }
   }
@@ -128,7 +128,7 @@ trait SparkSessionTestHelper extends FileTestHelper with LazyLogging {
   ) : DataFrame = {
     import sparkSession.sqlContext.implicits._
 
-    val csvLines = csv.lines.toList
+    val csvLines = csv.lines.iterator().asScala.toList
     val csvDS =
       sparkSession.sparkContext
         .parallelize(csvLines)

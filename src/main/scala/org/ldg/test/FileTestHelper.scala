@@ -87,8 +87,8 @@ trait FileTestHelper
     * @return
     */
   def compareLines(lhs: String, rhs: String) : Option[(Int,String,String)] = {
-    val lhsLines = lhs.lines.toIndexedSeq
-    val rhsLines = rhs.lines.toIndexedSeq
+    val lhsLines = lhs.lines.iterator().asScala.toIndexedSeq
+    val rhsLines = rhs.lines.iterator().asScala.toIndexedSeq
     lhsLines.iterator.zip(rhsLines.iterator).zipWithIndex.collectFirst {
       case ((lhsLine,rhsLine),idx) if lhsLine != rhsLine => (idx,lhsLine,rhsLine)
     }
